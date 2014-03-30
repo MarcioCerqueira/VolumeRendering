@@ -1,4 +1,5 @@
 C:\MVSProjects\pvm2pgm\x64\Debug\VisMale\
+TransferFunctions\Generic.mtf
 1
 256
 pgm

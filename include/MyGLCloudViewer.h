@@ -14,6 +14,9 @@ public:
 	void configureAmbient(GLfloat *eye, GLfloat *at, GLfloat *up, VRParams params);
 	void configureQuadAmbient(GLfloat *eye, GLfloat *at, GLfloat *up);
 	void configureLight();
+
+	void loadVBOQuad(GLuint *VBO, float x, float y, float z);
+	void drawQuad(GLuint *VBO);
 private:
 	float diffuseIntensity;
 	float globalAmbient;

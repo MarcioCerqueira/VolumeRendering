@@ -285,6 +285,33 @@ void MyGLImageViewer::draw3DTexture(GLuint *texVBO, int index, int octreeIndex, 
 			glUniform1i(texLoc, 0);
 		}
 
+		texLoc = glGetUniformLocation(shaderProg, "clippingPlane");
+		glUniform1i(texLoc, (int)params.clippingPlane);
+
+		texLoc = glGetUniformLocation(shaderProg, "inverseClipping");
+		glUniform1i(texLoc, (int)params.inverseClipping);
+
+		texLoc = glGetUniformLocation(shaderProg, "clippingOcclusion");
+		glUniform1i(texLoc, (int)params.clippingOcclusion);
+
+		texLoc = glGetUniformLocation(shaderProg, "clippingPlaneLeftX");
+		glUniform1f(texLoc, params.clippingPlaneLeftX);
+		
+		texLoc = glGetUniformLocation(shaderProg, "clippingPlaneRightX");
+		glUniform1f(texLoc, params.clippingPlaneRightX);
+
+		texLoc = glGetUniformLocation(shaderProg, "clippingPlaneUpY");
+		glUniform1f(texLoc, params.clippingPlaneUpY);
+		
+		texLoc = glGetUniformLocation(shaderProg, "clippingPlaneDownY");
+		glUniform1f(texLoc, params.clippingPlaneDownY);
+		
+		texLoc = glGetUniformLocation(shaderProg, "clippingPlaneFrontZ");
+		glUniform1f(texLoc, params.clippingPlaneFrontZ);
+		
+		texLoc = glGetUniformLocation(shaderProg, "clippingPlaneBackZ");
+		glUniform1f(texLoc, params.clippingPlaneBackZ);
+
 		texLoc = glGetUniformLocation(shaderProg, "isosurfaceThreshold");
 		glUniform1f(texLoc, params.isoSurfaceThreshold);
 
@@ -420,86 +447,86 @@ void MyGLImageViewer::drawQuads(float x, float y, float z, GLenum target) {
 	//front
 	if(color) glColor3f(0, 1, 1);
 	glMultiTexCoord3f(target, 0.0f, 1.0f, 1.0f);
-	glVertex3f(-x, y, z);
+	glVertex3f(-x, y, z);	//0
 	if(color) glColor3f(0, 0, 1);
 	glMultiTexCoord3f(target, 0.0f, 0.0f, 1.0f);
-	glVertex3f(-x, -y, z);
+	glVertex3f(-x, -y, z);	//1
 	if(color) glColor3f(1, 0, 1);
 	glMultiTexCoord3f(target, 1.0f, 0.0f, 1.0f);
-	glVertex3f(x, -y, z);
+	glVertex3f(x, -y, z);	//2
 	if(color) glColor3f(1, 1, 1);
 	glMultiTexCoord3f(target, 1.0f, 1.0f, 1.0f);
-	glVertex3f(x, y, z);
+	glVertex3f(x, y, z);	//3
 	
 	//left
 	if(color) glColor3f(0, 1, 0);
 	glMultiTexCoord3f(target, 0.0f, 1.0f, 0.0f);
-	glVertex3f(-x, y, -z);
+	glVertex3f(-x, y, -z);	//4
 	if(color) glColor3f(0, 0, 0);
 	glMultiTexCoord3f(target, 0.0f, 0.0f, 0.0f);
-	glVertex3f(-x, -y, -z);
+	glVertex3f(-x, -y, -z);	//5
 	if(color) glColor3f(0, 0, 1);
 	glMultiTexCoord3f(target, 0.0f, 0.0f, 1.0f);
-	glVertex3f(-x, -y, z);
+	glVertex3f(-x, -y, z);	//1
 	if(color) glColor3f(0, 1, 1);
 	glMultiTexCoord3f(target, 0.0f, 1.0f, 1.0f);
-	glVertex3f(-x, y, z);
+	glVertex3f(-x, y, z);	//0
 
 	//back
 	if(color) glColor3f(1, 1, 0);
 	glMultiTexCoord3f(target, 1.0f, 1.0f, 0.0f);
-	glVertex3f(x, y, -z);
+	glVertex3f(x, y, -z);	//7
 	if(color) glColor3f(1, 0, 0);
 	glMultiTexCoord3f(target, 1.0f, 0.0f, 0.0f);
-	glVertex3f(x, -y, -z);
+	glVertex3f(x, -y, -z);	//6
 	if(color) glColor3f(0, 0, 0);
 	glMultiTexCoord3f(target, 0.0f, 0.0f, 0.0f);
-	glVertex3f(-x, -y, -z);
+	glVertex3f(-x, -y, -z);	//5
 	if(color) glColor3f(0, 1, 0);
 	glMultiTexCoord3f(target, 0.0f, 1.0f, 0.0f);
-	glVertex3f(-x, y, -z);
+	glVertex3f(-x, y, -z);	//4
 
 	//right
 	if(color) glColor3f(1, 1, 1);
 	glMultiTexCoord3f(target, 1.0f, 1.0f, 1.0f);
-	glVertex3f(x, y, z);
+	glVertex3f(x, y, z);	//3
 	if(color) glColor3f(1, 0, 1);
 	glMultiTexCoord3f(target, 1.0f, 0.0f, 1.0f);
-	glVertex3f(x, -y, z);
+	glVertex3f(x, -y, z);	//2
 	if(color) glColor3f(1, 0, 0);
 	glMultiTexCoord3f(target, 1.0f, 0.0f, 0.0f);
-	glVertex3f(x, -y, -z);
+	glVertex3f(x, -y, -z);	//6
 	if(color) glColor3f(1, 1, 0);
 	glMultiTexCoord3f(target, 1.0f, 1.0f, 0.0f);
-	glVertex3f(x, y, -z);
+	glVertex3f(x, y, -z);	//7
 
 	//top
 	if(color) glColor3f(0, 1, 0);
 	glMultiTexCoord3f(target, 0.0f, 1.0f, 0.0f);
-	glVertex3f(-x, y, -z);
+	glVertex3f(-x, y, -z);	//4
 	if(color) glColor3f(0, 1, 1);
 	glMultiTexCoord3f(target, 0.0f, 1.0f, 1.0f);
-	glVertex3f(-x, y, z);
+	glVertex3f(-x, y, z);	//0
 	if(color) glColor3f(1, 1, 1);
 	glMultiTexCoord3f(target, 1.0f, 1.0f, 1.0f);
-	glVertex3f(x, y, z);
+	glVertex3f(x, y, z);	//3
 	if(color) glColor3f(1, 1, 0);
 	glMultiTexCoord3f(target, 1.0f, 1.0f, 0.0f);
-	glVertex3f(x, y, -z);
+	glVertex3f(x, y, -z);	//7
 
 	//bottom
 	if(color) glColor3f(1, 0, 0);
 	glMultiTexCoord3f(target, 1.0f, 0.0f, 0.0f);
-	glVertex3f(x, -y, -z);
+	glVertex3f(x, -y, -z);	//6
 	if(color) glColor3f(1, 0, 1);
 	glMultiTexCoord3f(target, 1.0f, 0.0f, 1.0f);
-	glVertex3f(x, -y, z);
+	glVertex3f(x, -y, z);	//2
 	if(color) glColor3f(0, 0, 1);
 	glMultiTexCoord3f(target, 0.0f, 0.0f, 1.0f);
-	glVertex3f(-x, -y, z);
+	glVertex3f(-x, -y, z);	//1
 	if(color) glColor3f(0, 0, 0);
 	glMultiTexCoord3f(target, 0.0f, 0.0f, 0.0f);
-	glVertex3f(-x, -y, -z);
+	glVertex3f(-x, -y, -z);	//5
 	
 	glEnd();
 

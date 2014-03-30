@@ -5,6 +5,15 @@ uniform sampler2D noise;
 uniform sampler2D frontFrameBuffer;
 uniform sampler2D backFrameBuffer;
 uniform float stepSize;
+uniform int clippingPlane;
+uniform int inverseClipping;
+uniform int clippingOcclusion;
+uniform float clippingPlaneLeftX;
+uniform float clippingPlaneRightX;
+uniform float clippingPlaneUpY;
+uniform float clippingPlaneDownY;
+uniform float clippingPlaneFrontZ;
+uniform float clippingPlaneBackZ;
 uniform float earlyRayTerminationThreshold;
 uniform float isosurfaceThreshold;
 uniform vec3 camera;
@@ -75,6 +84,17 @@ vec4 computeIllumination(vec4 scalar, vec3 position)
 	return scalar;
 }
 
+bool checkClippingPlane(vec3 position) 
+{
+	if(position.x >= clippingPlaneLeftX && position.x < clippingPlaneRightX 
+	&& position.y >= clippingPlaneDownY && position.y < clippingPlaneUpY
+	&& position.z >= clippingPlaneFrontZ && position.z < clippingPlaneBackZ)
+		return false;
+	else
+		return true;
+}
+
+
 void main (void)  
 {
 
@@ -100,37 +120,71 @@ void main (void)
 	//float maxStepSize = 4 * stepSize;
 	float accLength = 0.0;
 	vec4 maxOpacity;
+	bool clip = false;
+	bool firstHit = false;
 	
 	for(int i = 0; i < 200; i++) //Some large number
 	{
 		
 		maxOpacity = texture3D(minMaxOctree, position);
-		if(maxOpacity.g > 0.0) {
 
-			//Data access to scalar value in 3D volume texture
-			value = texture3D(volume, position);
+		if(clippingPlane) { 
+		
+			clip = checkClippingPlane(position);
+			if(inverseClipping) clip = !clip;
+			
+			if(clippingOcclusion) {
 
-			vec3 s = vec3(-stepSize * 0.5, -stepSize * 0.5, -stepSize * 0.5);
-			position = position + direction * s;
-			value = texture3D(volume, position);
-			if(value.a > 0.1) s *= 0.5;
-			else	s *= -0.5;
-			position = position + direction * s;
-			value = texture3D(volume, position);
+				if(!firstHit) {
+					value = texture3D(volume, position);
+					if(value.a > 0.075) {
+						if(clip) return;
+						else {
+							firstHit = true;
+						}
+					}
+				}
 
-			scalar.y = value.a;
-			if(value.a > isosurfaceThreshold) {
-				//src = texture2D(transferFunction, scalar.xy);
-				src = computeIllumination(value, position);
-				gl_FragColor = src;
-				return;
 			}
 
-			//Advance ray position along ray direction
-			position = position + direction * stepSize;
-			accLength += dirLength * stepSize;
+		}
+
+		if(maxOpacity.g > 0.0) {
+
+			if(!clip) {
 			
-			scalar.x = scalar.y;
+				//Data access to scalar value in 3D volume texture
+				value = texture3D(volume, position);
+
+				scalar.y = value.a;
+				if(value.a > isosurfaceThreshold) {
+					//src = texture2D(transferFunction, scalar.xy);
+					src = computeIllumination(value, position);
+					gl_FragColor = src;
+					return;
+				}
+
+				scalar.x = scalar.y;
+			
+			}
+			
+			//Advance ray position along ray direction
+			if(clippingOcclusion) {
+			
+				if(firstHit) {
+					position = position + direction * stepSize;
+					accLength += dirLength * stepSize;
+				} else {
+					position = position + direction * 0.008;
+					accLength += dirLength * 0.008;
+				}
+			
+			} else {
+			
+				position = position + direction * stepSize;
+				accLength += dirLength * stepSize;
+			
+			}
 
 		} else {
 		

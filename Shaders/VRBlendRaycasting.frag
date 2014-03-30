@@ -4,6 +4,15 @@ uniform sampler2D noise;
 uniform sampler2D frontFrameBuffer;
 uniform sampler2D backFrameBuffer;
 uniform float stepSize;
+uniform int clippingPlane;
+uniform int inverseClipping;
+uniform int clippingOcclusion;
+uniform float clippingPlaneLeftX;
+uniform float clippingPlaneRightX;
+uniform float clippingPlaneUpY;
+uniform float clippingPlaneDownY;
+uniform float clippingPlaneFrontZ;
+uniform float clippingPlaneBackZ;
 uniform float earlyRayTerminationThreshold;
 uniform vec3 camera;
 uniform int stochasticJithering;
@@ -55,6 +64,17 @@ vec4 efficientTriCubicInterpolation(sampler3D texture, vec3 texCoord)
 
 }
 
+bool checkClippingPlane(vec3 position) 
+{
+	if(position.x >= clippingPlaneLeftX && position.x < clippingPlaneRightX 
+	&& position.y >= clippingPlaneDownY && position.y < clippingPlaneUpY
+	&& position.z >= clippingPlaneFrontZ && position.z < clippingPlaneBackZ)
+		return false;
+	else
+		return true;
+}
+
+
 void main (void)  
 {
 
@@ -79,44 +99,73 @@ void main (void)
 	//float maxStepSize = 4.0 * stepSize;
 	float accLength = 0.0;
 	vec4 maxOpacity;
+	bool clip = false;
+	bool firstHit = false;
 	
 	for(int i = 0; i < 200; i++) //Some large number
 	{
 		
 		maxOpacity = texture3D(minMaxOctree, position);
-		if(maxOpacity.g > 0.0) {
+
+		if(clippingPlane) { 
 		
-			//Data access to scalar value in 3D volume texture
-			if(triCubicInterpolation == 1) {
-				value = efficientTriCubicInterpolation(volume, position);
-				vec3 s = vec3(-stepSize * 0.5, -stepSize * 0.5, -stepSize * 0.5);
-				position = position + direction * s;
-				value = efficientTriCubicInterpolation(volume, position);
-				if(value.a > 0.1) s *= 0.5;
-				else	s *= -0.5;
-				position = position + direction * s;
-				value = efficientTriCubicInterpolation(volume, position);
-			} else {
-				value = texture3D(volume, position);
-				vec3 s = vec3(-stepSize * 0.5, -stepSize * 0.5, -stepSize * 0.5);
-				position = position + direction * s;
-				value = texture3D(volume, position);
-				if(value.a > 0.1) s *= 0.5;
-				else	s *= -0.5;
-				position = position + direction * s;
-				value = texture3D(volume, position);
+			clip = checkClippingPlane(position);
+			if(inverseClipping) clip = !clip;
+			
+			if(clippingOcclusion) {
+
+				if(!firstHit) {
+					value = texture3D(volume, position);
+					if(value.a > 0.075) {
+						if(clip) return;
+						else {
+							firstHit = true;
+						}
+					}
+				}
+
 			}
 
-			if(MIP == 0) {
-				if(value.a > 0.1)
-					dst = (1.0 - dst.a) * value + dst;
-			} else
-				dst = max(dst, value);
+		}
+
+		if(maxOpacity.g > 0.0) {
+		
+			if(!clip) {
+				
+				//Data access to scalar value in 3D volume texture
+				if(triCubicInterpolation == 1) {
+					value = efficientTriCubicInterpolation(volume, position);
+				} else {
+					value = texture3D(volume, position);
+				}
+
+				if(MIP == 0) {
+					if(value.a > 0.1) {
+						dst = (1.0 - dst.a) * value + dst;
+					}
+				} else
+					dst = max(dst, value);
+				
+			}
 
 			//Advance ray position along ray direction
-			position = position + direction * stepSize;
-			accLength += dirLength * stepSize;
-		
+			if(clippingOcclusion) {
+			
+				if(firstHit) {
+					position = position + direction * stepSize;
+					accLength += dirLength * stepSize;
+				} else {
+					position = position + direction * 0.008;
+					accLength += dirLength * 0.008;
+				}
+			
+			} else {
+			
+				position = position + direction * stepSize;
+				accLength += dirLength * stepSize;
+			
+			}
+
 		} else {
 			
 			position = position + direction * maxStepSize;

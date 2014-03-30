@@ -23,7 +23,16 @@ bool translation = false;
 bool earlyRayTermination = false;
 bool stepSizeModification = false;
 bool isosurfaceThresholdModification = false;
+bool ks = false;
+bool kt = false;
 bool automatic = false;
+
+bool clippingPlaneLeftXOn = false;
+bool clippingPlaneRightXOn = false;
+bool clippingPlaneUpYOn = false;
+bool clippingPlaneDownYOn = false;
+bool clippingPlaneFrontZOn = false;
+bool clippingPlaneBackZOn = false;
 
 //180 -90
 float rot[3] = {0, 0, 0};
@@ -46,6 +55,7 @@ TriCubicInterpolationPreFilter *triCubicInterpolationPreFilter;
 VRParams vrparams;
 
 GLuint texVBO[10];
+GLuint quadVBO[4];
 
 //
 // Global handles for the currently active program object, with its two shader objects
@@ -54,7 +64,7 @@ GLuint ProgramObject = 0;
 GLuint VertexShaderObject = 0;
 GLuint FragmentShaderObject = 0;
 
-GLuint shaderVS, shaderFS, shaderProg[6];   // handles to objects
+GLuint shaderVS, shaderFS, shaderProg[10];   // handles to objects
 GLint  linked;
 
 
@@ -96,6 +106,8 @@ void readArguments(int argc, char** argv)
 		if(file.is_open()) {
 			std::getline(file, line);
 			strcpy(path, line.c_str());
+			std::getline(file, line);
+			strcpy(vrparams.transferFunctionPath, line.c_str());
 			std::getline(file, line);
 			firstSlice = atoi(line.c_str());
 			std::getline(file, line);
@@ -148,7 +160,8 @@ void display()
 	glViewport( 0, windowHeight/2, windowWidth/2, windowHeight/2 );
 	
 	myGLCloudViewer->configureQuadAmbient(eye, at, up);
-	
+	myGLCloudViewer->loadVBOQuad(quadVBO, 1.0f/vrparams.scaleWidth, 1.0f/vrparams.scaleHeight, 1.0f/vrparams.scaleDepth);
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glPushMatrix();
@@ -159,19 +172,20 @@ void display()
 	
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
-	myGLImageViewer->drawQuads(1.0f/vrparams.scaleWidth, 1.0f/vrparams.scaleHeight, 1.0f/vrparams.scaleDepth);
+	myGLCloudViewer->drawQuad(quadVBO);
 	myGLImageViewer->loadFrameBufferTexture(texVBO, 5, 0, windowHeight/2, windowWidth/2, windowHeight/2);
 	glDisable(GL_CULL_FACE);
 
-	myGLImageViewer->drawQuads(1.0f/vrparams.scaleWidth, 1.0f/vrparams.scaleHeight, 1.0f/vrparams.scaleDepth);
+	myGLCloudViewer->drawQuad(quadVBO);
 	myGLImageViewer->loadFrameBufferTexture(texVBO, 6, 0, windowHeight/2, windowWidth/2, windowHeight/2);
 	glPopMatrix();
+	
 	glViewport( 0, windowHeight/2, windowWidth/2, windowHeight/2 );
 	glClear( GL_COLOR_BUFFER_BIT  | GL_DEPTH_BUFFER_BIT );
-
+	
 	myGLCloudViewer->configureAmbient(eye, at, up, vrparams);
 	myGLImageViewer->draw3DTexture(texVBO, 0, 2, rot, trans, shaderProg[0], windowWidth, windowHeight, vrparams, 1);
-
+	
 	glViewport( windowWidth/2, windowHeight/2, windowWidth/2, windowHeight/2 );
 	
 	myGLCloudViewer->configureAmbient(eye, at, up, vrparams);
@@ -181,10 +195,11 @@ void display()
 	
 	myGLCloudViewer->configureAmbient(eye, at, up, vrparams);
 	myGLImageViewer->draw3DTexture(texVBO, 0, 2, rot, trans, shaderProg[2], windowWidth, windowHeight, vrparams, 1);
-
+	
 	glViewport(windowWidth/2, 0, windowWidth/2, windowHeight/2);
 	
 	myGLCloudViewer->configureAmbient(eye, at, up, vrparams);
+	
 	if(vrparams.NonPolygonalIsoSurface)
 		myGLImageViewer->draw3DTexture(texVBO, 0, 2, rot, trans, shaderProg[4], windowWidth, windowHeight, vrparams, 1);
 	else
@@ -201,16 +216,179 @@ void idle()
 	calculateFPS();
 }
 
+void volumeRenderingMenu(int id)
+{
+	switch(id)
+	{
+	case 0:
+		vrparams.stochasticJithering = !vrparams.stochasticJithering;
+		break;
+	case 1:
+		vrparams.triCubicInterpolation = !vrparams.triCubicInterpolation;
+		break;
+	case 2:
+		vrparams.MIP = !vrparams.MIP;
+		break;
+	case 3:
+		vrparams.NonPolygonalIsoSurface = !vrparams.NonPolygonalIsoSurface;
+		break;
+	case 4:
+		vrparams.gradientByForwardDifferences = !vrparams.gradientByForwardDifferences;
+		break;
+	case 5:
+		vrparams.clippingOcclusion = !vrparams.clippingOcclusion;
+		break;
+	case 6:
+		vrparams.inverseClipping = !vrparams.inverseClipping;
+		break;
+	}
+}
+
+void thresholdMenu(int id)
+{
+
+	translation = false;
+	rotation = false;
+	automatic = false;
+	earlyRayTermination = false;
+	stepSizeModification = false;
+	isosurfaceThresholdModification = false;
+	ks = false;
+	kt = false;
+	clippingPlaneLeftXOn = false;
+	clippingPlaneRightXOn = false;
+	clippingPlaneUpYOn = false;
+	clippingPlaneDownYOn = false;
+	clippingPlaneFrontZOn = false;
+	clippingPlaneBackZOn = false;
+
+	switch(id)
+	{
+	case 0:
+		earlyRayTermination = true;
+		break;
+	case 1:
+		stepSizeModification = true;
+		break;
+	case 2:
+		isosurfaceThresholdModification = true; 
+		break;
+	case 3:
+		ks = true;
+		break;
+	case 4:
+		kt = true;
+		break;
+	case 5:
+		clippingPlaneLeftXOn = true;
+		break;
+	case 6:
+		clippingPlaneRightXOn = true;
+		break;
+	case 7:
+		clippingPlaneUpYOn = true;
+		break;
+	case 8:
+		clippingPlaneDownYOn = true;
+		break;
+	case 9:
+		clippingPlaneFrontZOn = true;
+		break;
+	case 10:
+		clippingPlaneBackZOn = true;
+		break;
+	}
+}
+
+void transformationMenu(int id) 
+{
+	
+	translation = false;
+	rotation = false;
+	automatic = false;
+	earlyRayTermination = false;
+	stepSizeModification = false;
+	isosurfaceThresholdModification = false;
+	ks = false;
+	kt = false;
+	clippingPlaneLeftXOn = false;
+	clippingPlaneRightXOn = false;
+	clippingPlaneUpYOn = false;
+	clippingPlaneDownYOn = false;
+	clippingPlaneFrontZOn = false;
+	clippingPlaneBackZOn = false;
+
+	switch(id)
+	{
+	case 0:
+		translation = true;
+		break;
+	case 1:
+		rotation = true;
+		break;
+	case 2:
+		automatic = true;
+		break;
+	}
+
+}
+
+void mainMenu(int id)
+{
+}
+
+void createMenu()
+{
+	GLint volumeRenderingMenuID, thresholdMenuID, transformationMenuID;
+
+	volumeRenderingMenuID = glutCreateMenu(volumeRenderingMenu);
+		glutAddMenuEntry("Stochastic Jithering [On/Off]", 0);
+		glutAddMenuEntry("Tricubic Interpolation [On/Off]", 1);
+		glutAddMenuEntry("MIP [On/Off]", 2);
+		glutAddMenuEntry("Non Polygonal Iso Surface Rendering", 3);
+		glutAddMenuEntry("Gradient by Forward Differences [On/Off]", 4);
+		glutAddMenuEntry("Occlusion Based on Clipping [On/Off]", 5);
+		glutAddMenuEntry("Invert Clipping [On/Off]", 6);
+
+	thresholdMenuID = glutCreateMenu(thresholdMenu);
+		glutAddMenuEntry("Change Early Ray Termination", 0);
+		glutAddMenuEntry("Change Step Size (Raycasting)", 1);
+		glutAddMenuEntry("Change Iso Surface", 2);
+		glutAddMenuEntry("Change Ks (Context-Preserving VR)", 3);
+		glutAddMenuEntry("Change Kt (Context-Preserving VR)", 4);
+		glutAddMenuEntry("Change Clipping Plane Right X", 5); //inverted (also in specialKeyboard)
+		glutAddMenuEntry("Change Clipping Plane Left X", 6); //inverted (also in specialKeyboard)
+		glutAddMenuEntry("Change Clipping Plane Up Y", 7);
+		glutAddMenuEntry("Change Clipping Plane Down Y", 8);
+		glutAddMenuEntry("Change Clipping Plane Front Z", 9);
+		glutAddMenuEntry("Change Clipping Plane Back Z", 10);
+	
+	transformationMenuID = glutCreateMenu(transformationMenu);
+		glutAddMenuEntry("Change Translation", 0);
+		glutAddMenuEntry("Change Rotation", 1);
+		glutAddMenuEntry("Automatic Rotation", 2);
+
+	glutCreateMenu(mainMenu);
+		glutAddSubMenu("Transformation", transformationMenuID);
+		glutAddSubMenu("Volume Rendering", volumeRenderingMenuID);
+		glutAddSubMenu("Threshold", thresholdMenuID);
+		glutAttachMenu(GLUT_RIGHT_BUTTON);
+
+}
+
 void initGL()
 {
 
-	
-	glClearColor( 0.0f, 0.0f, 0.0f, 0.0 );
+	//glClearColor( 1.0f, 1.0f, 1.0f, 0.0 );
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0);
 	glShadeModel(GL_SMOOTH);
 	glPixelStorei( GL_UNPACK_ALIGNMENT, 1);  
 
 	if(texVBO[0] == 0)
 		glGenTextures(10, texVBO);
+
+	if(quadVBO[0] == 0)
+		glGenBuffers(4, quadVBO);
 
 	myGLImageViewer = new MyGLImageViewer();
 	myGLImageViewer->load3DTextureFromTIFFile(volume->getData(), texVBO, 0, volume->getWidth(), volume->getHeight(), volume->getDepth(), GL_LINEAR);
@@ -219,7 +397,7 @@ void initGL()
 	myGLCloudViewer = new MyGLCloudViewer();
 
 	transferFunction = new TransferFunction();
-	transferFunction->load();
+	transferFunction->load(vrparams.transferFunctionPath);
 	transferFunction->computePreIntegrationTable();
 	myGLImageViewer->load2DTexture(transferFunction->getPreIntegrationTable(), texVBO, 1, 256, 256);
 
@@ -235,7 +413,20 @@ void initGL()
 	vrparams.gradientByForwardDifferences = false;
 	vrparams.NonPolygonalIsoSurface = false;
 	vrparams.isoSurfaceThreshold = 0.1;
+	vrparams.importanceAwareComposition = false;
+	//Inverted because of the view
+	vrparams.clippingPlane = true;
+	vrparams.inverseClipping = false;
+	vrparams.clippingOcclusion = false;
+	vrparams.clippingPlaneLeftX = 0.0;
+	vrparams.clippingPlaneRightX = 1.0;
+	vrparams.clippingPlaneUpY = 1.0;
+	vrparams.clippingPlaneDownY = 0.0;
+	vrparams.clippingPlaneFrontZ = 0.0;
+	vrparams.clippingPlaneBackZ = 1.0;
 	
+	createMenu();
+
 	myGLImageViewer->loadRGBTexture(NULL, texVBO, 5, windowWidth, windowHeight);
 	myGLImageViewer->loadRGBTexture(NULL, texVBO, 6, windowWidth, windowHeight);
 
@@ -247,75 +438,6 @@ void keyboard(unsigned char key, int x, int y)
 	switch(key) {
 	case 27:
 		exit(0);
-		break;
-	case 'r':
-		rotation = true;
-		translation = false;
-		earlyRayTermination = false;
-		stepSizeModification = false;
-		isosurfaceThresholdModification = false;
-		break;
-	case 't':
-		translation = true;
-		rotation = false;
-		earlyRayTermination = false;
-		stepSizeModification = false;
-		isosurfaceThresholdModification = false;
-		break;
-	case 'e':
-		translation = false;
-		rotation = false;
-		earlyRayTermination = true;
-		stepSizeModification = false;
-		isosurfaceThresholdModification = false;
-		break;
-	case 's':
-		translation = false;
-		rotation = false;
-		earlyRayTermination = false;
-		stepSizeModification = true;
-		isosurfaceThresholdModification = false;
-		break;
-	case 'o':
-		translation = false;
-		rotation = false;
-		earlyRayTermination = false;
-		stepSizeModification = false;
-		isosurfaceThresholdModification = true;
-		break;
-	case 'j':
-		vrparams.stochasticJithering = !vrparams.stochasticJithering;
-		break;
-	case 'i':
-		vrparams.triCubicInterpolation = !vrparams.triCubicInterpolation;
-		break;
-	case 'a':
-		automatic = !automatic;
-		break;
-	case 'k':
-		vrparams.kt += 1;
-		printf("Kt: %f\n", vrparams.kt);
-		break;
-	case 'K':
-		vrparams.kt -= 1;
-		printf("Kt: %f\n", vrparams.kt);
-		break;
-	case 'l':
-		vrparams.ks += 0.05;
-		printf("Ks: %f\n", vrparams.ks);
-		break;
-	case 'L':
-		vrparams.ks -= 0.05;
-		printf("Ks: %f\n", vrparams.ks);
-		break;
-	case 'm':
-		vrparams.MIP = !vrparams.MIP;
-		break;
-	case 'g':
-		vrparams.gradientByForwardDifferences = !vrparams.gradientByForwardDifferences;
-		break;
-	case 'n':
-		vrparams.NonPolygonalIsoSurface = !vrparams.NonPolygonalIsoSurface;
 		break;
 	default:
 		break;
@@ -338,6 +460,18 @@ void specialKeyboard(int key, int x, int y)
 			vrparams.stepSize += 1.0/2048.0;
 		if(isosurfaceThresholdModification)
 			vrparams.isoSurfaceThreshold += 0.05;
+		if(ks)
+			vrparams.ks += 0.05;
+		if(kt)
+			vrparams.kt += 1;
+		if(clippingPlaneUpYOn) {
+			vrparams.clippingPlaneUpY += 0.05;
+			if(vrparams.clippingPlaneUpY > 1) vrparams.clippingPlaneUpY = 1;
+		}
+		if(clippingPlaneDownYOn) {
+			vrparams.clippingPlaneDownY += 0.05;
+			if(vrparams.clippingPlaneDownY > 1) vrparams.clippingPlaneDownY = 1;
+		}
 		break;
 	case GLUT_KEY_DOWN:
 		if(translation)
@@ -352,30 +486,73 @@ void specialKeyboard(int key, int x, int y)
 		}
 		if(isosurfaceThresholdModification)
 			vrparams.isoSurfaceThreshold -= 0.05;
+		if(ks)
+			vrparams.ks -= 0.05;
+		if(kt)
+			vrparams.kt -= 1;
+		if(clippingPlaneUpYOn) {
+			vrparams.clippingPlaneUpY -= 0.05;
+			if(vrparams.clippingPlaneUpY < 0) vrparams.clippingPlaneUpY = 0;
+		}
+		if(clippingPlaneDownYOn) {
+			vrparams.clippingPlaneDownY -= 0.05;
+			if(vrparams.clippingPlaneDownY < 0) vrparams.clippingPlaneDownY = 0;
+		}
 		break;
 	case GLUT_KEY_LEFT:
 		if(translation)
 			trans[0] -= vel;
 		if(rotation)
 			rot[0] -= 5 * vel;
+		if(clippingPlaneLeftXOn) {
+			vrparams.clippingPlaneLeftX += 0.05f;
+			if(vrparams.clippingPlaneLeftX > 1) vrparams.clippingPlaneLeftX = 1;
+		}
+		if(clippingPlaneRightXOn) {
+			vrparams.clippingPlaneRightX += 0.05f;
+			if(vrparams.clippingPlaneRightX > 1) vrparams.clippingPlaneRightX = 1;
+		}
 		break;
 	case GLUT_KEY_RIGHT:
 		if(translation)
 			trans[0] += vel;
 		if(rotation)
 			rot[0] += 5 * vel;
+		if(clippingPlaneLeftXOn) {
+			vrparams.clippingPlaneLeftX -= 0.05f;
+			if(vrparams.clippingPlaneLeftX < 0) vrparams.clippingPlaneLeftX = 0;
+		} if(clippingPlaneRightXOn) {
+			vrparams.clippingPlaneRightX -= 0.05f;
+			if(vrparams.clippingPlaneRightX < 0) vrparams.clippingPlaneRightX = 0;
+		}
 		break;
 	case GLUT_KEY_PAGE_UP:
 		if(translation)
 			trans[2] += vel;
 		if(rotation)
 			rot[2] += 5 * vel;
+		if(clippingPlaneFrontZOn) {
+			vrparams.clippingPlaneFrontZ += 0.05f;
+			if(vrparams.clippingPlaneFrontZ > 1) vrparams.clippingPlaneFrontZ = 1;
+		}
+		if(clippingPlaneBackZOn) {
+			vrparams.clippingPlaneBackZ += 0.05f;
+			if(vrparams.clippingPlaneBackZ > 1) vrparams.clippingPlaneBackZ = 1;
+		}
 		break;
 	case GLUT_KEY_PAGE_DOWN:
 		if(translation)
 			trans[2] -= vel;
 		if(rotation)
 			rot[2] -= 5 * vel;
+		if(clippingPlaneFrontZOn) {
+			vrparams.clippingPlaneFrontZ -= 0.05f;
+			if(vrparams.clippingPlaneFrontZ < 0) vrparams.clippingPlaneFrontZ = 0;
+		}
+		if(clippingPlaneBackZOn) {
+			vrparams.clippingPlaneBackZ -= 0.05f;
+			if(vrparams.clippingPlaneBackZ < 0) vrparams.clippingPlaneBackZ = 0;
+		}
 		break;
 	default:
 		break;
@@ -421,6 +598,8 @@ int main(int argc, char** argv)
 	initShader("Shaders/VRPreIntegrationRaycasting", 2);
 	initShader("Shaders/VRLocalIlluminationPreIntegrationRaycasting", 3);
 	initShader("Shaders/VRNonPolygonalRaycasting", 4);
+	//initShader("Shaders/VRImportanceAwareCompositionRaycasting", 5);
+
 	glUseProgram(0);
 
 	glutMainLoop();

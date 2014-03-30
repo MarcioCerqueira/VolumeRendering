@@ -1,0 +1,11 @@
+C:\MVSProjects\pvm2pgm\x64\Debug\CadaverHead\
+TransferFunctions\Generic.mtf
+1
+106
+pgm
+1
+1
+1
+0
+1
+2
