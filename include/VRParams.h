@@ -3,6 +3,17 @@
 
 typedef struct VRParams
 {
+	int volumeTextureIndex;
+	int transferFunctionTextureIndex;
+	int minMaxOctreeTextureIndex;
+	int noiseTextureIndex;
+	int backQuadTextureIndex;
+	int frontQuadTextureIndex;
+	int positionTextureIndex;
+	int normalTextureIndex;
+	int curvatureTextureIndex;
+	int focusTextureIndex;
+	int contextTextureIndex;
 	//step size for raycasting
 	float stepSize;
 	//early ray termination threshold
@@ -21,12 +32,16 @@ typedef struct VRParams
 	int rotationZ;
 	bool stochasticJithering;
 	bool triCubicInterpolation;
+	bool naiveVolumeRendering;
+	bool transferFunction;
+	bool localIllumination;
+	bool contextPreservingVolumeRendering;
+	bool nonPolygonalIsoSurface;
+	bool FCVisualization;
 	bool MIP;
-	bool NonPolygonalIsoSurface;
 	float isoSurfaceThreshold;
-	bool gradientByForwardDifferences;
-	bool importanceAwareComposition;
 	char transferFunctionPath[100];	
+	bool gradientByForwardDifferences;
 	//Clipping Planes
 	bool clippingPlane;
 	bool inverseClipping;
@@ -37,6 +52,9 @@ typedef struct VRParams
 	float clippingPlaneDownY;
 	float clippingPlaneFrontZ;
 	float clippingPlaneBackZ;
+	//ClearView
+	float focusPoint[2];
+	float focusRadius;
 } VRParams;
 
 #endif

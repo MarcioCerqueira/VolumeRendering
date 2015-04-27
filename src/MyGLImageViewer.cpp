@@ -1,7 +1,6 @@
 #include "MyGLImageViewer.h"
 
 MyGLImageViewer::MyGLImageViewer() {
-	stochasticJithering = false;
 	auxDepthBuffer = (float*) malloc(640 * 480 * sizeof(float));
 	depthBuffer = (unsigned char*) malloc(640 * 480 * 3 * sizeof(unsigned char));
 }
@@ -123,7 +122,7 @@ void MyGLImageViewer::load3DTextureFromTIFFile(unsigned char *data, GLuint *texV
 }
 
 	
-void MyGLImageViewer::loadDepthComponentTexture(unsigned short *data, GLuint *texVBO, int index, int windowWidth, int windowHeight)
+void MyGLImageViewer::loadDepthComponentTexture(float *data, GLuint *texVBO, int index, int windowWidth, int windowHeight)
 {
 
 	glBindTexture(GL_TEXTURE_2D, texVBO[index]);
@@ -132,7 +131,7 @@ void MyGLImageViewer::loadDepthComponentTexture(unsigned short *data, GLuint *te
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, windowWidth/2, windowHeight/2, 0, GL_DEPTH_COMPONENT, GL_FLOAT, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, windowWidth, windowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, data);
 
 }
 
@@ -146,7 +145,7 @@ void MyGLImageViewer::loadRGBTexture(const unsigned char *data, GLuint *texVBO, 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, windowWidth/2, windowHeight/2, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, windowWidth, windowHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 
 }
 
@@ -213,8 +212,7 @@ void MyGLImageViewer::draw2DTexture(GLuint *texVBO, int index, GLuint shaderProg
 }
 
 
-void MyGLImageViewer::draw3DTexture(GLuint *texVBO, int index, int octreeIndex, float *rot, float *trans, GLuint shaderProg, int windowWidth, int windowHeight, 
-	VRParams params, int TFIndex) {
+void MyGLImageViewer::draw3DTexture(GLuint *texVBO, float *rot, float *trans, GLuint shaderProg, int windowWidth, int windowHeight, VRParams params) {
 
 	glUseProgram(shaderProg);
 
@@ -223,7 +221,7 @@ void MyGLImageViewer::draw3DTexture(GLuint *texVBO, int index, int octreeIndex, 
 
 	glActiveTexture(GL_TEXTURE7);
 	glEnable(GL_TEXTURE_3D);
-	glBindTexture(GL_TEXTURE_3D, texVBO[index]);
+	glBindTexture(GL_TEXTURE_3D, texVBO[params.volumeTextureIndex]);
 
 	glActiveTexture(GL_TEXTURE7);
 	glMatrixMode(GL_TEXTURE);
@@ -234,7 +232,7 @@ void MyGLImageViewer::draw3DTexture(GLuint *texVBO, int index, int octreeIndex, 
 
 	glActiveTexture(GL_TEXTURE2);
 	glEnable(GL_TEXTURE_3D);
-	glBindTexture(GL_TEXTURE_3D, texVBO[octreeIndex]);
+	glBindTexture(GL_TEXTURE_3D, texVBO[params.minMaxOctreeTextureIndex]);
 	
 	if(params.stepSize >= 0) {
 
@@ -285,6 +283,14 @@ void MyGLImageViewer::draw3DTexture(GLuint *texVBO, int index, int octreeIndex, 
 			glUniform1i(texLoc, 0);
 		}
 
+		if(params.FCVisualization) {
+			texLoc = glGetUniformLocation(shaderProg, "FCVisualization");
+			glUniform1i(texLoc, 1);
+		} else {
+			texLoc = glGetUniformLocation(shaderProg, "FCVisualization");
+			glUniform1i(texLoc, 0);
+		}
+
 		texLoc = glGetUniformLocation(shaderProg, "clippingPlane");
 		glUniform1i(texLoc, (int)params.clippingPlane);
 
@@ -316,10 +322,10 @@ void MyGLImageViewer::draw3DTexture(GLuint *texVBO, int index, int octreeIndex, 
 		glUniform1f(texLoc, params.isoSurfaceThreshold);
 
 		texLoc = glGetUniformLocation(shaderProg, "windowWidth");
-		glUniform1i(texLoc, 640);
+		glUniform1i(texLoc, windowWidth);
 
 		texLoc = glGetUniformLocation(shaderProg, "windowHeight");
-		glUniform1i(texLoc, 480);
+		glUniform1i(texLoc, windowHeight);
 
 	}
 	
@@ -330,14 +336,14 @@ void MyGLImageViewer::draw3DTexture(GLuint *texVBO, int index, int octreeIndex, 
 
 	glActiveTexture(GL_TEXTURE1);
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, texVBO[1]);
+	glBindTexture(GL_TEXTURE_2D, texVBO[params.transferFunctionTextureIndex]);
 	
 	texLoc = glGetUniformLocation(shaderProg, "noise");
 	glUniform1i(texLoc, 3);
 
 	glActiveTexture(GL_TEXTURE3);
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, texVBO[3]);
+	glBindTexture(GL_TEXTURE_2D, texVBO[params.noiseTextureIndex]);
 	
 	
 	texLoc = glGetUniformLocation(shaderProg, "backFrameBuffer");
@@ -345,15 +351,33 @@ void MyGLImageViewer::draw3DTexture(GLuint *texVBO, int index, int octreeIndex, 
 
 	glActiveTexture(GL_TEXTURE5);
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, texVBO[5]);
+	glBindTexture(GL_TEXTURE_2D, texVBO[params.backQuadTextureIndex]);
 	
 	texLoc = glGetUniformLocation(shaderProg, "frontFrameBuffer");
 	glUniform1i(texLoc, 6);
 
 	glActiveTexture(GL_TEXTURE6);
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, texVBO[6]);
+	glBindTexture(GL_TEXTURE_2D, texVBO[params.frontQuadTextureIndex]);
 	
+	if(params.FCVisualization) {
+		
+		texLoc = glGetUniformLocation(shaderProg, "positionBuffer");
+		glUniform1i(texLoc, 8);
+
+		glActiveTexture(GL_TEXTURE8);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, texVBO[params.positionTextureIndex]);
+		
+		texLoc = glGetUniformLocation(shaderProg, "normalBuffer");
+		glUniform1i(texLoc, 9);
+
+		glActiveTexture(GL_TEXTURE9);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, texVBO[params.normalTextureIndex]);
+	
+	}
+
 	glUseProgram(0);
 	
 	glActiveTexture(GL_TEXTURE1);
@@ -368,7 +392,78 @@ void MyGLImageViewer::draw3DTexture(GLuint *texVBO, int index, int octreeIndex, 
 	glDisable(GL_TEXTURE_2D);
 	glActiveTexture(GL_TEXTURE7);
 	glDisable(GL_TEXTURE_3D);
+	if(params.FCVisualization) {
+		glActiveTexture(GL_TEXTURE8);
+		glDisable(GL_TEXTURE_2D);
+		glActiveTexture(GL_TEXTURE9);
+		glDisable(GL_TEXTURE_2D);
+	}
+
+}
+
+void MyGLImageViewer::drawFCVisualization(GLuint *texVBO, GLuint shaderProg, int windowWidth, int windowHeight, VRParams params) {
+
+	glUseProgram(shaderProg);
+
+	drawQuads(1.0f/params.scaleWidth, 1.0f/params.scaleHeight, 1.0f/params.scaleDepth);
 	
+	GLuint texLoc = glGetUniformLocation(shaderProg, "position");
+	glUniform1i(texLoc, 8);
+
+	glActiveTexture(GL_TEXTURE8);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texVBO[params.positionTextureIndex]);
+		
+	texLoc = glGetUniformLocation(shaderProg, "normal");
+	glUniform1i(texLoc, 9);
+
+	glActiveTexture(GL_TEXTURE9);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texVBO[params.normalTextureIndex]);
+	
+	texLoc = glGetUniformLocation(shaderProg, "curvature");
+	glUniform1i(texLoc, 10);
+
+	glActiveTexture(GL_TEXTURE10);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texVBO[params.curvatureTextureIndex]);
+	
+	texLoc = glGetUniformLocation(shaderProg, "focusLayer");
+	glUniform1i(texLoc, 11);
+
+	glActiveTexture(GL_TEXTURE11);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texVBO[params.focusTextureIndex]);
+
+	texLoc = glGetUniformLocation(shaderProg, "contextLayer");
+	glUniform1i(texLoc, 12);
+
+	glActiveTexture(GL_TEXTURE12);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texVBO[params.contextTextureIndex]);
+
+	texLoc = glGetUniformLocation(shaderProg, "focusPoint");
+	glUniform2f(texLoc, params.focusPoint[0], params.focusPoint[1]);
+	texLoc = glGetUniformLocation(shaderProg, "focusRadius");
+	glUniform1f(texLoc, params.focusRadius);
+	texLoc = glGetUniformLocation(shaderProg, "windowWidth");
+	glUniform1i(texLoc, windowWidth);
+	texLoc = glGetUniformLocation(shaderProg, "windowHeight");
+	glUniform1i(texLoc, windowHeight);
+
+	glUseProgram(0);
+	
+	glActiveTexture(GL_TEXTURE8);
+	glDisable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE9);
+	glDisable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE10);
+	glDisable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE11);
+	glDisable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE12);
+	glDisable(GL_TEXTURE_2D);
+
 }
 
 void MyGLImageViewer::setShadowTextureMatrix() {

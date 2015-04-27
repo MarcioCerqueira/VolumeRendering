@@ -107,29 +107,29 @@ void main (void)
 		
 		maxOpacity = texture3D(minMaxOctree, position);
 
-		if(clippingPlane) { 
+		if(maxOpacity.g > 0.0) {
 		
-			clip = checkClippingPlane(position);
-			if(inverseClipping) clip = !clip;
+			if(clippingPlane) { 
+		
+				clip = checkClippingPlane(position);
+				if(inverseClipping) clip = !clip;
 			
-			if(clippingOcclusion) {
+				if(clippingOcclusion) {
 
-				if(!firstHit) {
-					value = texture3D(volume, position);
-					if(value.a > 0.075) {
-						if(clip) return;
-						else {
-							firstHit = true;
+					if(!firstHit) {
+						value = texture3D(volume, position);
+						if(value.a > 0.075) {
+							if(clip) return;
+							else {
+								firstHit = true;
+							}
 						}
 					}
+
 				}
 
 			}
 
-		}
-
-		if(maxOpacity.g > 0.0) {
-		
 			if(!clip) {
 				
 				//Data access to scalar value in 3D volume texture
@@ -155,8 +155,8 @@ void main (void)
 					position = position + direction * stepSize;
 					accLength += dirLength * stepSize;
 				} else {
-					position = position + direction * 0.008;
-					accLength += dirLength * 0.008;
+					position = position + direction * stepSize;
+					accLength += dirLength * stepSize;
 				}
 			
 			} else {

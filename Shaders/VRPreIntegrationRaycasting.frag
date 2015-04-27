@@ -149,9 +149,7 @@ void main (void)
 						dst = (1.0 - dst.a) * src + dst;
 				} else
 					dst = max(dst, src);
-				//Advance ray position along ray direction
-				position = position + direction * stepSize;
-				accLength += dirLength * stepSize;
+				
 				//Save previous scalar value
 				scalar.x = scalar.y;
 

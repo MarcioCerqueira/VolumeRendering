@@ -4,8 +4,8 @@ static float angle = 0;
 
 MyGLCloudViewer::MyGLCloudViewer() 
 {
-	diffuseIntensity = 0.2;
-	globalAmbient = 0.2;
+	diffuseIntensity = 0.35;
+	globalAmbient = 0.35;
 }
 
 void MyGLCloudViewer::configureAmbient(GLfloat *eye, GLfloat *at, GLfloat *up, VRParams params) 

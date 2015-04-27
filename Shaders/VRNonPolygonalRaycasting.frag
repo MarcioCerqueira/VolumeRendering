@@ -21,6 +21,7 @@ varying vec3 v;
 uniform int MIP;
 uniform int forwardDifference;
 uniform int stochasticJithering;
+uniform int FCVisualization;
 uniform int windowWidth;
 uniform int windowHeight;
 
@@ -160,7 +161,10 @@ void main (void)
 				if(value.a > isosurfaceThreshold) {
 					//src = texture2D(transferFunction, scalar.xy);
 					src = computeIllumination(value, position);
-					gl_FragColor = src;
+					if(FCVisualization)
+						gl_FragColor = vec4(position, 1.0);
+					else
+						gl_FragColor = src;
 					return;
 				}
 
